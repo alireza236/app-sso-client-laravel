@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+    app-sso-one:
+        build:
+            args:
+                user: alireza
+                uid: 1000
+            context: ./
+            dockerfile: Dockerfile
+        image: app-sso-one/php
+        container_name: app-sso-one
+        restart: unless-stopped
+        tty: true
+        environment:
+            SERVICE_NAME: app
+            SERVICE_TAGS: dev
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+            - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+        networks:
+            - network-sso
+    server-sso-one:
+        image: nginx:1.19.4-alpine
+        container_name: server-sso-one
+        restart: unless-stopped
+        command: ["nginx","-g","daemon off;"]
+        tty: true
+        ports:
+            - "8080:8080"
+            # - "443:443"
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+        networks:
+            - network-sso
+
+# Docker networks
+networks:
+  network-sso:
+      external: true
+
+
