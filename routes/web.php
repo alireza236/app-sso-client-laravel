@@ -19,14 +19,17 @@ use App\Models\User;
 |
 */
 
+Route::get('/', function (Request $request) {
+
+    return view('welcome');
+});
 
 Route::get('/authsso', function (Request $request) {
 
         $request->session()->put("state", $state = Str::random(40));
         $query = http_build_query([
-            "client_id" => "", // 
-            "redirect_uri" => "", // ini adalah URI callback untuk men-generate token setelah proses autentikasi berhasil  
-                                  // nama URI ini adalah nama URI aplikasi klien contoh : https://sikerja.bekasikota.go.id/callback       
+            "client_id" => "", //adalah id yang mewakili dari 1 client yang akan digunakan untuk proses autentikasi
+            "redirect_uri" => "", // ini adalah URI callback untuk men-generate token setelah proses autentikasi berhasil  nama URI ini adalah nama URI aplikasi klien contoh : https://sikerja.bekasikota.go.id/callback
             "response_type" => "code",
             "state" => $state
         ]);
@@ -47,48 +50,36 @@ Route::get('/callback', function (Request $request) {
 
     $response = Http::asForm()->post('https://sso.bekasikota.go.id/oauth/token', [
         'grant_type' => 'authorization_code',
-        'client_id' => '',
-        'client_secret' => '',
-        'redirect_uri' => '', // ini adalah URI callback untuk men-generate token setelah proses autentikasi berhasil  
-                                                            // nama URI ini adalah nama URI aplikasi klien contoh : https://sikerja.bekasikota.go.id/callback
+        'client_id' => '',       // adalah id yang mewakili dari 1 client yang akan digunakan untuk proses autentikasi
+        'client_secret' => '',   // adalah pasangan dari client id, bisa disebut juga sebagai password nya
+        'redirect_uri' => '',    // ini adalah URI callback untuk men-generate token setelah proses autentikasi berhasil  nama URI ini adalah nama URI aplikasi klien contoh : https://sikerja.bekasikota.go.id/callback
         'code' => $request->code,
     ]);
 
 
     $request->session()->put($response->json());
 
-    return redirect('/userinfo');
+    $access_token = $request->session()->get('access_token');
+
+    $response = Http::withHeaders([
+        "Accept" => "application/json",
+        "Authorization" => "Bearer " . $access_token
+    ])->get("https://sso.bekasikota.go.id/api/user");
+
+    $nip =  $response['nip'];
+
+    $user = User::whereNip($nip)->first();
+
+    //dd($user);
+
+    if ($user) {
+        Auth::login($user);
+        return redirect('/home');
+    } else {
+        abort(403, 'Unauthorized.');
+    }
 });
 
-
-Route::get('/userinfo', function (Request $request) {
-
-       $access_token = $request->session()->get('access_token');
-
-       $response = Http::withHeaders([
-           "Accept" => "application/json",
-           "Authorization" => "Bearer ". $access_token
-       ])->get("https://sso.bekasikota.go.id/api/user");
-
-       $email =  $response['email'];
-
-       $user = User::whereEmail($email)->first();
-
-       //return $response->json();
-
-       if ($user) {
-           Auth::login($user);
-           return redirect('/home');
-       } else {
-          abort(403, 'Unauthorized.');
-       }
-});
-
-
-Route::get('/', function (Request $request) {
-
-      return view('welcome');
-});
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/home', function () {
