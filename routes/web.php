@@ -72,11 +72,18 @@ Route::get('/callback', function (Request $request) {
 
     //dd($user);
 
+    /*
+      Note : sebelum menyimpan data user ke auth session lakukan proses kueri data dgn menggunakan NIP untuk memastikan ada kesesuaian data antara SSO server dgn aplikasi klien
+             apabila data tidak sesuai maka lakukan redirect ke http://sso.bekasikota.go.id/authsso/failed, dan apabila  data berdasarkan NIP sesuai antara SSO server
+              dgn aplikasi klien maka simpan  ke dalam session sebagai autentikasi..
+    */
+
     if ($user) {
         Auth::login($user);
         return redirect('/home');
     } else {
         abort(403, 'Unauthorized.');
+        return redirect('http://sso.bekasikota.go.id/authsso/failed');
     }
 });
 
